@@ -1,0 +1,169 @@
+
+clc;close all; clear all;
+
+f = imread('C:\Documents and Settings\Administrator\桌面\a\060.bmp');
+data = double(f);
+[M N] = size(f);
+figure;imshow(f);
+
+x = [106 117 131 148 168 190 215 247 282 320 360 400 437 472 502 527 549 567 583]-360;
+y = 288 - [121 112 100 86   73  60  48  36  27  22  20  22  29  39  50 62  75  86  98];
+% x =     [77  85  92  104 118 137 162 195 239 295 359 421 477 520 551 576 595 609 621]-360;
+% y = 288-[224 219 214 206 198 189 178 167 155 146 144 146 155 164 174 184 192 200 205];
+[MM NN] = size(x);
+%R=288;A=360;B=288;
+[R,A,B] = fitellipse(x,y); 
+
+%figure;
+%hold on;
+%plot(x,y)
+%x_circ = -360:360;
+%y_circ = ( R.^2 - (x_circ-A).^2 ).^0.5 + B;
+%plot(x_circ,y_circ);
+
+
+%R1=380;
+z = R/2-110;
+data_then = zeros(M,N);
+ %x0=360;y0=288;
+for i = 1:M
+   for j = 1:N
+        x = j - 360;  %坐标转换
+        y = 288 - i;
+       
+         u =R*x*( (z*z+x*x+y*y).^0.5-z )/(x*x+y*y);
+        v = R*y*( (z*z+x*x+y*y).^0.5-z )/(x*x+y*y);
+        
+%         u = 22/21*R*x*( (z*z+x*x+y*y).^0.5-z )/(x*x+y*y);
+%         v =23/21* R*y*( (z*z+x*x+y*y).^0.5-z )/(x*x+y*y);
+%         
+        %u=(x-x0)*(R.^2-(y-y0)^2)^0.5/R+x0;
+       % v=y;
+        
+        i_index = 288 - v;
+        j_index = 360 + u;
+        
+        i_index = uint32(i_index);
+        j_index = uint32(j_index);
+        
+        if(i_index<1 || i_index>576 ||j_index<1|| j_index>720)
+            data_then(i,j) = 0;
+        else
+            data_then(i,j) = data(i_index,j_index);
+        end
+   end
+end
+figure;imshow(uint8(data_then));
+
+ 
+%img=imread('大楼1.bmp') ;
+
+%转化为灰度图像
+%img_gray=rgb2gray(data_then) ;
+%figure(1) ;
+%imshow(img_gray) ;
+%title('Gray Image') ;
+
+%直方图均衡
+img_histeq=histeq(data_then) ;
+figure(2) ;
+imshow(img_histeq,[]) ;
+title('Histgram Equalization Image') ;
+%sobel边缘检测
+%  img_sobel=edge(img_histeq,'sobel') ;
+img_sobel=sobel(img_histeq) ;
+figure(3) ;
+imshow(img_sobel,[]) ;
+title('Sobel Edge Detection ') ;
+kernel=[1;1;1;1;1;1;1;1] ;
+img_erode=imerode(img_sobel,kernel) ;
+img_dilate=imdilate(img_erode,kernel) ;
+figure(4)
+imshow(img_dilate) ;
+title('Dilate Image') ;
+%radon检测直线
+theta = 0:179;
+[R,xp] = radon(img_dilate,theta);
+figure(5) ;
+imagesc(theta, xp, R); colormap(hot);
+xlabel('/theta (degrees)'); ylabel('x/prime');
+title('R_{/theta} (x/prime)');
+colorbar
+
+%计算直线 注意radon变换的圆心在图像的中心
+gray_max1=max(max(R(:,1:90))) ;
+gray_max2=max(max(R(:,90:180))) ;
+[len1,theta1]=find(R==gray_max1) ;
+[len2,theta2]=find(R==gray_max2) ;
+theta1=theta1+90-1 ;
+theta2=theta2-90-1 ;
+len1=len1-length(R)/2 ;
+len2=len2-length(R)/2;
+%斜率
+k1=-cot(theta1*pi/180) ;%注意前面要带负号，因为y朝下
+k2=-cot(theta2*pi/180) ;
+
+%求原点到直线的垂足的坐标
+[m,n]=size(img_dilate) ;
+x1=n/2+len1*sin(theta1*pi/180);
+y1=m/2-len1*cos(theta1*pi/180);
+x2=n/2-len2*sin(theta2*pi/180);
+y2=m/2-len2*cos(theta2*pi/180);
+
+%在图像中画线，标出检测出来的直线,直线方程为x-x0=k(y-y0) ;
+y1_1=0 ;
+x1_1=k1*(y1_1-y1)+x1 ;
+y1_2=m ;
+x1_2=k1*(y1_2-y1)+x1 ;
+
+y2_1=0 ;
+x2_1=k2*(y2_1-y2)+x2 ;
+y2_2=m ;
+x2_2=k2*(y2_2-y2)+x2 ;
+figure(4) ;
+hold on ;
+% line('xdata', [left right], 'ydata', [top bottom])
+%标注垂足
+markpoint(x2,y2,'g') ;
+markpoint(x1,y1,'g') ;
+%将检测出来的直线画出来
+line([x1_1,x1_2],[y1_1,y1_2]) ;
+line([x2_1,x2_2],[y2_1,y2_2]) ;
+
+
+%寻找四个连接点
+y11=m*3/4 ;
+x11=k1*(y11-y1)+x1 ;
+y111=m/4 ;
+x111=x11 ;
+x11_1=k1*(y111-y1)+x1 ;
+y21=y11 ;
+x21=k2*(y21-y2)+x2 ;
+y211=y111 ;
+x211=x21 ;
+x21_1=k2*(y211-y2)+x2 ;
+
+markpoint(x11,y11,'g') ;
+markpoint(x111,y111,'g') ;
+markpoint(x11_1,y111,'r') ;
+markpoint(x21,y21,'g') ;
+markpoint(x211,y211,'g') ;
+markpoint(x21_1,y211,'r') ;
+%校正
+basepoints=[x11 y11;x21 y21;x111,y111;x211,y211] ;
+inputpoints=[x11 y11;x21 y21;x11_1,y111;x21_1,y211] ;
+cpt=cp2tform(inputpoints,basepoints,'projective') ;
+figure(6) ;
+img_correction=imtransform(img,cpt) ;
+imshow(img_correction);
+title('Distortion Correction Image') ;
+
+ 
+
+
+
+
+
+
+
+    
