@@ -1,52 +1,47 @@
 %% 基于经纬度映射法校正鱼眼图像 反向映射
 clear all
-clc
+clc 
+close all
 A=imread('2.jpg');
 [A,R]=kuaisusaomiao(A,40);
 [m,n,k]=size(A);
-for i=1:m
+for i=1:m*1
     for j=1:n
-       %% 规格化坐标系  
-        u=j-R;
-        v=R-i;
-        r=sqrt(u^2+v^2);
-        if(r==0)
-            fi=0;
-        elseif(u>=0)
-           fi=asin(v/r);
-        else
-            fi=pi-asin(v/r);
-        end
-        
-       %% 鱼眼图像映射到球坐标系中去
-        f=R*2/pi;
-        theta=r/f;%实景方向向量的入射角（垂直于球面过球心）这个角度的真实含义是该点位置离圆心的距离等距为角度距离（等距校正模型）
-        
-        x=f*sin(theta)*cos(fi);
-        y=f*sin(theta)*sin(fi);
-        z=f*cos(theta);%z值不可能是负值，由建立的模型可知，正向映射的数据必须保证数据应该来自于圆内的数据
-        if(z<=0)
+    %% 首先我们知道的是校正后图像的位置也就是i,j
+    %step.1 还原球坐标
+    % xx=round(f*sita);
+    % yy=round(2*R-f*fai);
+     f=R*2/pi;
+    sita = j/f;
+    fai = (2*R-(i/1))/f;
+    %% 还原球坐标系的笛卡尔坐标系的值
+    % 由之前坐标系sita 和 fai的定义可知
+    y = cos(sita);
+    x = sin(sita)*cos(fai);
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+    
+    %修正算法
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     z = R*sin(sita)*sin(fai);
+    %现在要知道成像位置的的u和v的值，那么这个值和x,y,x,z之间的关系是什么呢？
+    %This step is very important 
+    u = x*R;
+    v = y*R;
+    uu = round(u + R);
+    vv = round(R-v);
+    
+     if(vv<1||uu<1||vv>m||uu>n)
+          C(j,i) = 255;
+          vv = 1;
             continue;
-        end
-        
-       %% 重选择坐标系 圆坐标系
-        rr=sqrt(x^2+z^2);
-        sita=pi/2-atan(y/rr);
-        if(z>=0)
-            fai=acos(x/rr);
-        else
-            fai=pi-acos(x/rr);
-        end
-       %% 最后投射变换
-        xx=round(f*sita);
-        yy=round(2*R-f*fai);
-        
-        if(xx<1||yy<1||xx>m||yy>n)
-            continue;
-        end
-        C(xx,yy)=A(i,j);
+     end
+  
+    %%
+         C(j,i)=A(vv,uu,1);
 
     end
 end
 
 imshow(uint8(C))
+% imwrite(C,'method_4_1.jpg');
